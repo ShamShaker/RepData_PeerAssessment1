@@ -1,0 +1,183 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+## Loading required packages
+```{r, loadingpackages, results='hide'}
+library(tidyverse)
+library(xtable)
+```
+
+## Loading and preprocessing the data
+
+```{r, setWD, echo=FALSE}
+setwd("C:/Users/BusinessTim/Desktop/desktop files/Coursera/ReProReseach/Project1/RepData_PeerAssessment1/")
+
+```
+
+Loading the data
+```{r, loadingdata}
+activity.data<-read_csv("activity.csv")
+```
+
+## What is mean total number of steps taken per day?
+
+Calculate total steps per day
+
+```{r, results='hide'}
+total.daily.steps<-activity.data %>%
+  group_by(date)%>%
+  summarize(sum.daily.steps=sum(steps)) %>%
+  drop_na()
+```
+
+Histogram of the total number of steps taken each day
+```{r}
+ggplot(data=total.daily.steps, aes(x=sum.daily.steps))+
+  geom_histogram(fill='blue', color='black')+
+    xlab('Total daily steps')+
+    ylab('Count')
+```
+
+Mean and median of the total number of steps taken per day
+
+```{r, results='asis'}
+daily.steps.summary.stats<-total.daily.steps %>%
+  ungroup() %>%
+  summarize(mean.daily.step=mean(sum.daily.steps, na.rm=TRUE), 
+            median.daily.steps=median(sum.daily.steps, na.rm=TRUE))%>%
+  rename(Mean_Daily_Steps=mean.daily.step,
+         Median_Daily_Steps=median.daily.steps)
+
+ds.xt<-xtable(daily.steps.summary.stats)
+
+print(ds.xt, type='html')
+```
+
+
+## What is the average daily activity pattern?
+
+Average number of steps taken per 5 minute interval:
+
+```{r, results='hide'}
+mean.interval.steps<-activity.data %>%
+  group_by(interval)%>%
+  summarize(mean.interval.steps=sum(steps, na.rm=TRUE)) 
+```
+
+```{r}
+(ggplot(data=mean.interval.steps, aes(x=interval, y=mean.interval.steps))+
+    geom_line()+
+    ylab('Mean steps per 5-minute interval')+
+    xlab('Interval'))
+```
+
+Interval with the maximum mean steps:
+
+```{r, results='asis'}
+max.steps<-mean.interval.steps %>%
+  filter(mean.interval.steps==max(mean.interval.steps)) %>%
+  dplyr::select(interval)
+
+print(xtable(max.steps), type='html')
+```
+
+
+## Imputing missing values
+
+Rows with missing data:
+
+```{r}
+        missing.data.rows<-activity.data %>%
+          mutate(missing=is.na(steps)) %>%
+          filter(missing==TRUE) %>%
+          nrow()
+        
+        print(missing.data.rows)
+```
+
+
+
+Histogram of imputed total daily steps
+```{r}
+imputed.data<-data.frame()
+
+interval.list<-unique(activity.data$interval)
+
+for (i in interval.list){
+  
+      to.impute<-activity.data %>%
+        filter(interval==i) 
+      
+      to.impute$steps[is.na(to.impute$steps)]<-mean(to.impute$steps, na.rm=TRUE)
+      
+      imputed.data<-bind_rows(imputed.data, to.impute)
+
+}
+
+imputed.activity.data<-imputed.data %>%
+  group_by(date) %>%
+  summarize(sum.daily.steps=sum(steps))
+
+ggplot(data=imputed.activity.data, aes(x=sum.daily.steps))+
+    geom_histogram(fill='blue', color='black')+
+    xlab('Total daily steps')+
+    ylab('Count')
+```
+
+Imputed mean and median daily steps
+
+```{r, results='asis'}
+daily.steps.summary.stats<-imputed.activity.data %>%
+    ungroup() %>%
+    summarize(mean.daily.step=mean(sum.daily.steps, na.rm=TRUE), 
+              median.daily.steps=median(sum.daily.steps, na.rm=TRUE))
+
+ds.xt.im<-xtable::xtable(daily.steps.summary.stats)
+
+print(ds.xt.im, type='html')
+```
+
+The imputed mean is unaffected, but the median is now slightly higher
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+
+```{r, results='hide'}
+week.part<-imputed.data %>%
+  mutate(day.type=as.factor(ifelse(weekdays(date)=='Sunday' | 
+                                     weekdays(date)=='Saturday', 'weekend', 'weekday'))) %>%
+  group_by(day.type, interval) %>%
+  mutate(mean.steps=mean(steps))
+```
+
+Mean number of steps in a given 5-minute interval by weekday-day or weekend-day
+
+```{r}
+(ggplot(data=week.part, aes(x=interval, y=mean.steps))+
+  geom_line()+
+  facet_grid(day.type~.))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
